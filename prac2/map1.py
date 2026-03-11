@@ -17,8 +17,22 @@ colores_pastel = [
 (0.9, 0.8, 1.0) # violeta claro
 ]
 
+colores_tierra = [
+(0.6, 0.4, 0.2),
+(0.8, 0.7, 0.5),
+(0.9, 0.8, 0.6),
+(0.7, 0.5, 0.3),
+(0.5, 0.3, 0.1)
+]
+
+colores_propio = [
+(0.5, 0.0, 0.0),
+(0.0, 0.0, 0.5),
+]
+
 # Crear el mapa de color personalizado
-mapa_pastel = LinearSegmentedColormap.from_list("PastelMap", colores_pastel, N=256)
+# mapa_pastel = LinearSegmentedColormap.from_list("PastelMap", colores_pastel, N=256)
+mapa_tierra = LinearSegmentedColormap.from_list("Tierra", colores_propio, N=8)
 
 # Visualizar la imagen original y la imagen con pseudocolor pastel
 fig, axs = plt.subplots(1, 2, figsize=(12, 4))
@@ -29,7 +43,7 @@ axs[0].set_title('Imagen en escala de grises')
 axs[0].axis('off')
 
 # Imagen con mapa de color pastel
-axs[1].imshow(imagen_gris, cmap=mapa_pastel)
+axs[1].imshow(imagen_gris, cmap=mapa_tierra)
 axs[1].set_title('Imagen con un mapa de color personalizado tipo pastel')
 axs[1].axis('off')
 
