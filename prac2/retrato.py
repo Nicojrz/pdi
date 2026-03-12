@@ -1,9 +1,13 @@
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
-imagen_gris = np.tile(np.linspace(0, 255, 256), (100, 1)).astype(np.uint8)
+# Cargar imagen y convertir a escala de grises
+imagen = cv2.imread('retrato.jpg')
+imagen_gris = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
 
+# Definir mapas
 colores_pastel = [
     (1.0, 0.8, 0.9),
     (0.8, 1.0, 0.8),
@@ -32,7 +36,8 @@ mapa_pastel   = LinearSegmentedColormap.from_list("PastelMap", colores_pastel,  
 mapa_tierra   = LinearSegmentedColormap.from_list("Tierra",    colores_tierra,   N=256)
 mapa_arcoiris = LinearSegmentedColormap.from_list("Arcoiris",  colores_arcoiris, N=256)
 
-fig, axs = plt.subplots(1, 4, figsize=(20, 4))  # corregido: 4 ejes
+# Visualizar
+fig, axs = plt.subplots(1, 4, figsize=(20, 5))
 
 axs[0].imshow(imagen_gris, cmap='gray')
 axs[0].set_title('Escala de grises')
