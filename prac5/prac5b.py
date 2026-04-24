@@ -177,6 +177,81 @@ def mask(original_bgr, mask_binary):
     result = cv2.bitwise_and(original_bgr, original_bgr, mask=mask)
     return result
 
+def sobel_edges(gray, ksize=3):
+    """
+    Detecta bordes usando Sobel en X y Y y devuelve la magnitud del gradiente.
+    """
+    # Gradientes
+    gx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=ksize)
+    gy = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=ksize)
+
+    # Magnitud del gradiente
+    mag = np.sqrt(gx**2 + gy**2)
+
+    # Normalizar a 0-255
+    mag = np.uint8(255 * mag / np.max(mag))
+    return mag
+    
+def detect_objects_from_mask(mask_binary, min_area=50, draw_labels=True):
+    """
+    Detecta objetos (contornos externos) a partir de una máscara binaria
+    y devuelve una imagen en color con los contornos dibujados.
+
+    Parámetros:
+    - mask_binary: imagen binaria 0/255 (grises)
+    - min_area: área mínima para considerar un objeto válido
+    - draw_labels: si True, numera los objetos detectados
+
+    Retorna:
+    - image_bgr: imagen BGR con contornos y etiquetas
+    - contours_filtrados: lista de contornos válidos
+    """
+
+    if len(mask_binary.shape) != 2:
+        raise ValueError("La máscara debe ser binaria de un canal")
+
+    # Convertir a BGR para dibujar en color
+    image_bgr = cv2.cvtColor(mask_binary, cv2.COLOR_GRAY2BGR)
+
+    # Encontrar contornos externos
+    contours, _ = cv2.findContours(
+        mask_binary,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    contours_filtrados = []
+    obj_id = 1
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+
+        contours_filtrados.append(contour)
+
+        # Dibujar contorno
+        cv2.drawContours(image_bgr, [contour], -1, (0, 255, 0), 2)
+
+        if draw_labels:
+            # Centroide para numerar
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                cv2.putText(
+                    image_bgr,
+                    str(obj_id),
+                    (cx, cy),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),
+                    2
+                )
+                obj_id += 1
+
+    return image_bgr, contours_filtrados
+
 # =========================
 # Pipeline principal (SRP)
 # =========================
@@ -222,12 +297,16 @@ def process_image(path):
         #img = gaussian_blur(img)
         #img = threshold_fixed(img,140)
         show_image(img, 'Filtro Máximos')
+        masc = img
         #img = max_filter(img)
         #img = max_filter(img)
         img = mask(image, img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         show_image(img, 'Mascara')
         show_image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), 'Imagen original', cmap=None)
+        show_image(sobel_edges(to_gray(img)), 'Sobel')
+        obj, cont = detect_objects_from_mask(masc, 10)
+        show_image(obj,f'Se detectaron {len(cont)} objetos')
 
 #    show_image(gamma_correction(gray), 'Corrección Gamma')
 
