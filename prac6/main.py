@@ -67,18 +67,6 @@ def cargar_imagen() -> np.ndarray | None:
 # ─────────────────────────────────────────────
 
 def ruido_sal_pimienta(imagen: np.ndarray, cantidad: float = 0.05) -> np.ndarray:
-    """
-    Aplica ruido sal y pimienta.
-
-    Parameters
-    ----------
-    imagen   : imagen en escala de grises (uint8).
-    cantidad : proporción de píxeles afectados [0, 1].
-
-    Returns
-    -------
-    Imagen con ruido (uint8).
-    """
     resultado = imagen.copy()
     total_px  = imagen.size
     n_afectados = int(total_px * cantidad)
@@ -97,37 +85,12 @@ def ruido_sal_pimienta(imagen: np.ndarray, cantidad: float = 0.05) -> np.ndarray
 
 
 def ruido_gaussiano(imagen: np.ndarray, media: float = 0, sigma: float = 25) -> np.ndarray:
-    """
-    Aplica ruido gaussiano aditivo.
-
-    Parameters
-    ----------
-    imagen : imagen en escala de grises (uint8).
-    media  : media de la distribución normal.
-    sigma  : desviación estándar (controla la intensidad del ruido).
-
-    Returns
-    -------
-    Imagen con ruido (uint8).
-    """
     ruido    = np.random.normal(media, sigma, imagen.shape).astype(np.float32)
     resultado = np.clip(imagen.astype(np.float32) + ruido, 0, 255)
     return resultado.astype(np.uint8)
 
 
 def ruido_multiplicativo(imagen: np.ndarray, varianza: float = 0.1) -> np.ndarray:
-    """
-    Aplica ruido multiplicativo (Speckle): I_r = I + I * N(0, var).
-
-    Parameters
-    ----------
-    imagen   : imagen en escala de grises (uint8).
-    varianza : varianza del ruido gaussiano multiplicado.
-
-    Returns
-    -------
-    Imagen con ruido (uint8).
-    """
     ruido     = np.random.normal(0, varianza ** 0.5, imagen.shape).astype(np.float32)
     resultado = imagen.astype(np.float32) * (1 + ruido)
     resultado = np.clip(resultado, 0, 255)
@@ -269,6 +232,83 @@ def redimensionar_imagen(imagen: np.ndarray, min_dim: int = 200) -> np.ndarray:
     print(f"✔  Redimensionada: {ancho}×{alto} → {nuevo_ancho}×{nuevo_alto} px  (escala: {escala:.4f})")
     return resultado
 
+# ─────────────────────────────────────────────
+# 2B. FUNCIONES DE FILTRADO
+# ─────────────────────────────────────────────
+
+def filtro_promediador(img: np.ndarray, k: int = 3) -> np.ndarray:
+    return cv2.blur(img, (k, k))
+
+
+def filtro_gaussiano(img: np.ndarray, k: int = 5, sigma: float = 1.2) -> np.ndarray:
+    return cv2.GaussianBlur(img, (k, k), sigma)
+
+
+def filtro_mediana(img: np.ndarray, k: int = 5) -> np.ndarray:
+    return cv2.medianBlur(img, k)
+
+
+def filtro_bilateral(img: np.ndarray, d: int = 9, sigma_color: int = 75, sigma_space: int = 75) -> np.ndarray:
+    return cv2.bilateralFilter(img, d, sigma_color, sigma_space)
+
+
+def filtro_maximo(img: np.ndarray, k: int = 3) -> np.ndarray:
+    kernel = np.ones((k, k), np.uint8)
+    return cv2.dilate(img, kernel)
+
+
+def filtro_moda(img: np.ndarray, k: int = 3) -> np.ndarray:
+    """
+    Filtro de moda implementado manualmente.
+    """
+    pad = k // 2
+    padded = np.pad(img, pad, mode='edge')
+    resultado = np.zeros_like(img)
+
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            ventana = padded[i:i+k, j:j+k]
+            valores, conteo = np.unique(ventana, return_counts=True)
+            resultado[i, j] = valores[np.argmax(conteo)]
+
+    return resultado
+
+def aplicar_todos_los_filtros(img: np.ndarray) -> dict:
+    """
+    Aplica todos los filtros a una imagen y devuelve un diccionario.
+    """
+    return {
+        "Original": img,
+        "Promediador": filtro_promediador(img),
+        "Gaussiano": filtro_gaussiano(img),
+        "Mediana": filtro_mediana(img),
+        "Bilateral": filtro_bilateral(img),
+        "Moda": filtro_moda(img),
+        "Máximo": filtro_maximo(img),
+    }
+
+def visualizar_filtros_por_ruido(titulo_ruido: str, resultados: dict) -> None:
+    """
+    Muestra la imagen ruidosa y el resultado de todos los filtros.
+    """
+    n = len(resultados)
+    cols = 4
+    rows = int(np.ceil(n / cols))
+
+    plt.figure(figsize=(16, 8))
+    plt.suptitle(f"Filtros aplicados a ruido: {titulo_ruido}", fontsize=16)
+
+    for i, (nombre, img) in enumerate(resultados.items()):
+        ax = plt.subplot(rows, cols, i + 1)
+        ax.imshow(img, cmap='gray', vmin=0, vmax=255)
+        ax.set_title(nombre, fontsize=10)
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+
+
 
 # ─────────────────────────────────────────────
 # 4. FUNCIÓN PRINCIPAL
@@ -298,6 +338,20 @@ def main() -> None:
     print("📊 Mostrando resultados...")
     visualizar_resultados(imagen_gris, img_sp, img_gauss, img_mult)
     print("✔  Listo.")
+
+    # 3. Aplicar filtros a cada ruido
+    print("🧪 Aplicando filtros a cada tipo de ruido...")
+
+    filtros_sp    = aplicar_todos_los_filtros(img_sp)
+    filtros_gauss = aplicar_todos_los_filtros(img_gauss)
+    filtros_mult  = aplicar_todos_los_filtros(img_mult)
+
+    # 4. Visualizar resultados
+    visualizar_filtros_por_ruido("Sal y Pimienta", filtros_sp)
+    visualizar_filtros_por_ruido("Gaussiano", filtros_gauss)
+    visualizar_filtros_por_ruido("Multiplicativo (Speckle)", filtros_mult)
+
+    print("✔  Análisis completo terminado.")
 
 
 if __name__ == "__main__":
